@@ -1,2 +1,3 @@
 import "./styles.css";
-console.log("greeting");
+import { Ship } from "./ship.js";
+import { Board } from "./board.js";
