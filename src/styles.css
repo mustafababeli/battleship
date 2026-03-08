@@ -1,4 +1,42 @@
 /* styles.css */
 body {
-  background-color: rebeccapurple;
+  margin: 0px;
+}
+
+.game {
+  display: flex;
+  flex-direction: column;
+}
+.game-title {
+  font-size: 50px;
+  font-weight: 900;
+}
+
+.header {
+  display: flex;
+  justify-content: center;
+}
+.start-game-btn {
+  font-size: larger;
+  padding: 10px 10px 10px 10px;
+  margin: 10px;
+}
+
+.boards-div {
+  display: flex;
+  gap: 50px;
+  justify-content: space-around;
+}
+.humanboard-div,
+.computerboard-div {
+  display: grid;
+  grid-template-columns: repeat(10, 10px);
+  grid-template-rows: repeat(10, 10px);
+  gap: 1px;
+}
+
+.spot {
+  width: 10px;
+  height: 10px;
+  border: 1px solid black;
 }

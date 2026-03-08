@@ -1,3 +1,22 @@
 import "./styles.css";
-import { Ship } from "./ship.js";
-import { Board } from "./board.js";
+import {
+  renderGameStart,
+  loadPlayerNameForm,
+  loadPlayerTags,
+  loadPlayersBoards,
+} from "./render-ui.js";
+
+import { startGame, players } from "./game.js";
+
+renderGameStart(() => {
+  loadPlayerNameForm((inputValue) => {
+    startGame(inputValue);
+
+    const human = players.human.name;
+    const computer = players.computer.name;
+
+    loadPlayerTags(human, computer);
+
+    loadPlayersBoards();
+  });
+});
