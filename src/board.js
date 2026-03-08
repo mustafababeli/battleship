@@ -24,6 +24,20 @@ export class Board {
       }
     }
 
+    // Overlap check
+    for (const newCoord of coordinates) {
+      for (const placedShip of this.ships) {
+        for (const placedCoord of placedShip.coordinates) {
+          if (
+            newCoord[0] === placedCoord[0] &&
+            newCoord[1] === placedCoord[1]
+          ) {
+            throw new Error("Ship overlap");
+          }
+        }
+      }
+    }
+
     this.ships.push({
       ship,
       coordinates,

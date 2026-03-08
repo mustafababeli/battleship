@@ -4,6 +4,8 @@ import {
   loadPlayerNameForm,
   loadPlayerTags,
   loadPlayersBoards,
+  renderShips,
+  renderComputerShips,
 } from "./render-ui.js";
 
 import { startGame, players } from "./game.js";
@@ -17,6 +19,13 @@ renderGameStart(() => {
 
     loadPlayerTags(human, computer);
 
-    loadPlayersBoards();
+    loadPlayersBoards((x, y, board) => {
+      console.log("clicked", x, y, board);
+    });
+
+    //show computer ships
+    renderComputerShips(players.computer.board.ships);
+
+    renderShips();
   });
 });
