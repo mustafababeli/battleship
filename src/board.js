@@ -2,29 +2,28 @@ export class Board {
   constructor() {
     this.ships = [];
     this.missedAttacks = [];
+    this.hitAttacks = [];
   }
 
   placeShip(ship, x, y, direction) {
-    let coordinates = [];
+    const coordinates = [];
 
     for (let i = 0; i < ship.length; i++) {
       if (direction === "horizontal") {
         coordinates.push([x + i, y]);
       } else if (direction === "vertical") {
         coordinates.push([x, y + i]);
+      } else {
+        throw new Error("Invalid direction");
       }
     }
 
-    for (const coord of coordinates) {
-      const cx = coord[0];
-      const cy = coord[1];
-
+    for (const [cx, cy] of coordinates) {
       if (cx < 0 || cx >= 10 || cy < 0 || cy >= 10) {
         throw new Error("Ship out of bounds");
       }
     }
 
-    // Overlap check
     for (const newCoord of coordinates) {
       for (const placedShip of this.ships) {
         for (const placedCoord of placedShip.coordinates) {
@@ -45,22 +44,36 @@ export class Board {
   }
 
   receiveAttack(x, y) {
-    //Loop through every ship on board
-    for (let i = 0; i < this.ships.length; i++) {
-      let shipObj = this.ships[i];
-      //Loop through every coordnate of every ship
-      for (let j = 0; j < shipObj.coordinates.length; j++) {
-        let coord = shipObj.coordinates[j];
+    for (let i = 0; i < this.missedAttacks.length; i++) {
+      const missedCoord = this.missedAttacks[i];
+      if (missedCoord[0] === x && missedCoord[1] === y) {
+        return "already attacked";
+      }
+    }
 
-        //check if hit coordnate corresponds with ship position
+    for (let i = 0; i < this.hitAttacks.length; i++) {
+      const hitCoord = this.hitAttacks[i];
+      if (hitCoord[0] === x && hitCoord[1] === y) {
+        return "already attacked";
+      }
+    }
+
+    for (let i = 0; i < this.ships.length; i++) {
+      const shipObj = this.ships[i];
+
+      for (let j = 0; j < shipObj.coordinates.length; j++) {
+        const coord = shipObj.coordinates[j];
+
         if (coord[0] === x && coord[1] === y) {
           shipObj.ship.hit();
-          return;
+          this.hitAttacks.push([x, y]);
+          return "hit";
         }
       }
     }
 
     this.missedAttacks.push([x, y]);
+    return "miss";
   }
 
   allShipsSunk() {

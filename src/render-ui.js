@@ -1,16 +1,23 @@
-import { Player } from "./player.js";
-
 const startGameBtn = document.createElement("button");
 
-// Initial UI
+function getDraggedShipData(event) {
+  const rawData = event.dataTransfer?.getData("text/plain");
+
+  if (!rawData || !rawData.trim()) return null;
+
+  try {
+    return JSON.parse(rawData);
+  } catch {
+    return null;
+  }
+}
+
 export function renderGameStart(onStart) {
   startGameBtn.classList.add("start-game-btn");
   startGameBtn.textContent = "Start Game";
 
   startGameBtn.addEventListener("click", () => {
     onStart();
-
-    //Start game button is removed after click
     startGameBtn.remove();
   });
 
@@ -18,9 +25,7 @@ export function renderGameStart(onStart) {
   gameInterface.appendChild(startGameBtn);
 }
 
-// Name player UI
 export function loadPlayerNameForm(sendName) {
-  //Create form elements
   const playerNameForm = document.createElement("form");
 
   const nameInputLabel = document.createElement("label");
@@ -35,17 +40,14 @@ export function loadPlayerNameForm(sendName) {
   submitBtn.textContent = "Submit";
   submitBtn.type = "submit";
 
-  //Players created
   playerNameForm.addEventListener("submit", (e) => {
     e.preventDefault();
 
-    //store a string name
-    const inputValue = nameInput.value;
+    const inputValue = nameInput.value.trim();
+    if (!inputValue) return;
 
-    //Form removed after name submittion
+    hideGameTitle();
     playerNameForm.remove();
-
-    //name sent to index.js
     sendName(inputValue);
   });
 
@@ -57,35 +59,28 @@ export function loadPlayerNameForm(sendName) {
   gameInterface.appendChild(playerNameForm);
 }
 
-//Render Players Names to UI
-
-export function loadPlayerTags(humanPlayer, computerPlayer) {
-  //Players' names div
-  const namesDiv = document.createElement("div");
-  namesDiv.classList.add("names-div");
-
-  //Human's name div
-  const humanName = document.createElement("div");
-  humanName.classList.add("human-name");
-  humanName.textContent = `${humanPlayer}`;
-
-  namesDiv.appendChild(humanName);
-
-  //computer' names div
-  const computerName = document.createElement("div");
-  computerName.classList.add("computer-name");
-  computerName.textContent = computerPlayer;
-
-  namesDiv.appendChild(computerName);
-
-  const gameInterface = document.getElementById("game");
-  gameInterface.appendChild(namesDiv);
+export function hideGameTitle() {
+  const title = document.querySelector(".header");
+  if (title) {
+    title.remove();
+  }
 }
 
-//==============boards creation==============//
+export function loadPlayersBoards(
+  humanPlayer,
+  computerPlayer,
+  onAttack,
+  onPlacement,
+  onPlacementHover,
+  onPlacementHoverLeave,
+) {
+  const computerWrapper = document.createElement("div");
+  computerWrapper.classList.add("board-wrapper");
 
-export function loadPlayersBoards(passSpotCoords) {
-  //computer' board div
+  const computerLabel = document.createElement("div");
+  computerLabel.classList.add("board-label");
+  computerLabel.textContent = computerPlayer;
+
   const computerBoard = document.createElement("div");
   computerBoard.classList.add("computerboard-div");
 
@@ -96,12 +91,20 @@ export function loadPlayersBoards(passSpotCoords) {
       spot.dataset.x = x;
       spot.dataset.y = y;
       spot.dataset.board = "computer";
-
       computerBoard.appendChild(spot);
     }
   }
 
-  //Human's board div
+  computerWrapper.appendChild(computerLabel);
+  computerWrapper.appendChild(computerBoard);
+
+  const humanWrapper = document.createElement("div");
+  humanWrapper.classList.add("board-wrapper");
+
+  const humanLabel = document.createElement("div");
+  humanLabel.classList.add("board-label");
+  humanLabel.textContent = humanPlayer;
+
   const humanBoard = document.createElement("div");
   humanBoard.classList.add("humanboard-div");
 
@@ -112,104 +115,317 @@ export function loadPlayersBoards(passSpotCoords) {
       spot.dataset.x = x;
       spot.dataset.y = y;
       spot.dataset.board = "human";
-
       humanBoard.appendChild(spot);
     }
   }
 
+  humanWrapper.appendChild(humanLabel);
+  humanWrapper.appendChild(humanBoard);
+
   const boards = document.createElement("div");
   boards.classList.add("boards-div");
-
-  boards.appendChild(computerBoard);
-  boards.appendChild(humanBoard);
+  boards.appendChild(computerWrapper);
+  boards.appendChild(humanWrapper);
 
   const gameInterface = document.getElementById("game");
   gameInterface.appendChild(boards);
 
-  //==============boards event listener logic==============//
-
   boards.addEventListener("click", (e) => {
-    if (e.target.matches(".spot")) {
-      e.target.classList.toggle("clicked");
+    if (!e.target.matches(".spot")) return;
 
-      //store clicked spot's coordnates
-      const cordX = e.target.dataset.x;
-      const cordY = e.target.dataset.y;
-      const board = e.target.dataset.board;
+    const cordX = e.target.dataset.x;
+    const cordY = e.target.dataset.y;
+    const board = e.target.dataset.board;
 
-      passSpotCoords(cordX, cordY, board);
+    if (
+      board === "computer" &&
+      (e.target.classList.contains("hit") ||
+        e.target.classList.contains("miss"))
+    ) {
+      return;
+    }
+
+    if (onAttack) {
+      onAttack(cordX, cordY, board, e.target);
+    }
+  });
+
+  boards.addEventListener("pointerover", (e) => {
+    if (!e.target.matches(".spot")) return;
+
+    const x = e.target.dataset.x;
+    const y = e.target.dataset.y;
+    const board = e.target.dataset.board;
+
+    if (onPlacementHover) {
+      onPlacementHover(x, y, board, null);
+    }
+  });
+
+  boards.addEventListener("pointerleave", (e) => {
+    if (!e.target.matches(".spot")) return;
+
+    if (onPlacementHoverLeave) {
+      onPlacementHoverLeave();
+    }
+  });
+
+  boards.addEventListener("dragover", (e) => {
+    if (!e.target.matches(".spot")) return;
+
+    e.preventDefault();
+
+    const shipData = getDraggedShipData(e);
+    if (!shipData) return;
+
+    const x = e.target.dataset.x;
+    const y = e.target.dataset.y;
+    const board = e.target.dataset.board;
+
+    if (onPlacementHover) {
+      onPlacementHover(x, y, board, shipData);
+    }
+  });
+
+  boards.addEventListener("dragleave", (e) => {
+    if (!e.target.matches(".spot")) return;
+
+    if (onPlacementHoverLeave) {
+      onPlacementHoverLeave();
+    }
+  });
+
+  boards.addEventListener("drop", (e) => {
+    if (!e.target.matches(".spot")) return;
+
+    e.preventDefault();
+
+    const shipData = getDraggedShipData(e);
+    if (!shipData) return;
+
+    const x = e.target.dataset.x;
+    const y = e.target.dataset.y;
+    const board = e.target.dataset.board;
+
+    if (onPlacement) {
+      onPlacement(x, y, board, shipData);
     }
   });
 }
 
-//=================Render Ships on ships boaard=================
+export function renderShips(onSelectShip) {
+  function createShip(name, length, color) {
+    const ship = document.createElement("div");
+    ship.style.width = `${length * 34 + (length - 1) * 3}px`;
+    ship.style.height = "34px";
+    ship.style.background = color;
 
-export function renderShips() {
-  // carrier
-  const carrier = document.createElement("div");
-  carrier.style.width = "50px";
-  carrier.style.height = "10px";
-  carrier.style.background = "red";
+    ship.dataset.ship = name;
+    ship.dataset.length = length;
+    ship.draggable = true;
+    ship.classList.add("ship-stock");
 
-  carrier.dataset.ship = "carrier";
-  carrier.dataset.length = 5;
+    ship.addEventListener("dragstart", (e) => {
+      e.dataTransfer.setData(
+        "text/plain",
+        JSON.stringify({
+          name,
+          length,
+        }),
+      );
 
-  // battleship
-  const battleship = document.createElement("div");
-  battleship.style.width = "40px";
-  battleship.style.height = "10px";
-  battleship.style.background = "blue";
+      onSelectShip(name, Number(length), ship);
+    });
 
-  battleship.dataset.ship = "battleShip";
-  battleship.dataset.length = 4;
+    ship.addEventListener("click", () => {
+      onSelectShip(name, Number(length), ship);
+    });
 
-  // cruiser
-  const cruiser = document.createElement("div");
-  cruiser.style.width = "30px";
-  cruiser.style.height = "10px";
-  cruiser.style.background = "green";
+    return ship;
+  }
 
-  cruiser.dataset.ship = "cruiser";
-  cruiser.dataset.length = 3;
+  const carrier = createShip("carrier", 5, "red");
+  const battleship = createShip("battleship", 4, "blue");
+  const cruiser = createShip("cruiser", 3, "green");
+  const submarine = createShip("submarine", 3, "purple");
+  const destroyer = createShip("destroyer", 2, "yellow");
 
-  // submarine
-  const submarine = document.createElement("div");
-  submarine.style.width = "30px";
-  submarine.style.height = "10px";
-  submarine.style.background = "purple";
+  const controlsRow = document.createElement("div");
+  controlsRow.classList.add("ships-controls");
 
-  submarine.dataset.ship = "submarine";
-  submarine.dataset.length = 3;
+  const directionInfo = document.createElement("p");
+  directionInfo.classList.add("direction-indicator");
+  directionInfo.textContent = "Direction: horizontal";
 
-  // destroyer
-  const destroyer = document.createElement("div");
-  destroyer.style.width = "20px";
-  destroyer.style.height = "10px";
-  destroyer.style.background = "yellow";
+  const rotateBtn = document.createElement("button");
+  rotateBtn.classList.add("rotate-ships-btn");
+  rotateBtn.type = "button";
+  rotateBtn.textContent = "Rotate Ships";
 
-  destroyer.dataset.ship = "destroyer";
-  destroyer.dataset.length = 2;
+  controlsRow.append(directionInfo, rotateBtn);
 
-  // ships board
   const shipsBoard = document.createElement("div");
   shipsBoard.classList.add("ships-board");
   shipsBoard.append(destroyer, submarine, cruiser, battleship, carrier);
 
-  const gameInterface = document.getElementById("game");
-  gameInterface.appendChild(shipsBoard);
+  const stockpileMessage = document.createElement("p");
+  stockpileMessage.classList.add("stockpile-message");
+  stockpileMessage.textContent = "";
+
+  shipsBoard.appendChild(stockpileMessage);
+
+  const game = document.getElementById("game");
+  game.appendChild(controlsRow);
+  game.appendChild(shipsBoard);
 }
 
-//render computer ships on computer board
-export function renderComputerShips(ships) {
-  for (const shipObj of ships) {
-    for (const [x, y] of shipObj.coordinates) {
-      const spot = document.querySelector(
-        `.computerboard-div .spot[data-x="${x}"][data-y="${y}"]`,
-      );
+export function hideShipControls() {
+  const controls = document.querySelector(".ships-controls");
+  if (controls) {
+    controls.remove();
+  }
+}
 
-      if (spot) {
-        spot.classList.add("ship-preview");
+export function highlightSelectedShip(name) {
+  clearSelectedShipHighlight();
+
+  const ship = document.querySelector(`[data-ship="${name}"]`);
+  if (!ship) return;
+
+  ship.classList.add("selected-ship");
+}
+
+export function clearSelectedShipHighlight() {
+  document.querySelectorAll(".selected-ship").forEach((ship) => {
+    ship.classList.remove("selected-ship");
+  });
+}
+
+export function updateDirectionLabel(direction) {
+  const label = document.querySelector(".direction-indicator");
+  if (!label) return;
+
+  label.textContent = `Direction: ${direction}`;
+}
+
+export function showStatusMessage(message) {
+  const shipsBoard = document.querySelector(".ships-board");
+  const stockpileMessage = document.querySelector(".stockpile-message");
+
+  if (!shipsBoard || !stockpileMessage) return;
+
+  const remainingShips = shipsBoard.querySelectorAll("[data-ship]");
+
+  if (remainingShips.length === 0) {
+    stockpileMessage.textContent = message;
+    stockpileMessage.classList.add("visible");
+  } else {
+    stockpileMessage.textContent = "";
+    stockpileMessage.classList.remove("visible");
+  }
+}
+
+export function paintShipPlacement(x, y, direction, length) {
+  for (let i = 0; i < length; i++) {
+    const px = direction === "horizontal" ? x + i : x;
+    const py = direction === "vertical" ? y + i : y;
+
+    const spot = document.querySelector(
+      `.humanboard-div .spot[data-x="${px}"][data-y="${py}"]`,
+    );
+
+    if (spot) {
+      spot.classList.add("ship-preview");
+    }
+  }
+}
+
+export function showHoverPreview(x, y, length, direction, boardInstance) {
+  clearHoverPreview();
+
+  let isValid = true;
+  const previewCells = [];
+
+  for (let i = 0; i < length; i++) {
+    const px = direction === "horizontal" ? x + i : x;
+    const py = direction === "vertical" ? y + i : y;
+
+    if (px < 0 || px >= 10 || py < 0 || py >= 10) {
+      isValid = false;
+      continue;
+    }
+
+    for (const placedShip of boardInstance.ships) {
+      for (const [sx, sy] of placedShip.coordinates) {
+        if (sx === px && sy === py) {
+          isValid = false;
+        }
       }
     }
+
+    previewCells.push([px, py]);
+  }
+
+  for (const [px, py] of previewCells) {
+    const spot = document.querySelector(
+      `.humanboard-div .spot[data-x="${px}"][data-y="${py}"]`,
+    );
+
+    if (!spot) continue;
+
+    spot.classList.add("hover-preview");
+    spot.classList.add(isValid ? "preview-valid" : "preview-invalid");
+  }
+}
+
+export function clearHoverPreview() {
+  const previewSpots = document.querySelectorAll(".hover-preview");
+
+  previewSpots.forEach((spot) => {
+    spot.classList.remove("hover-preview", "preview-valid", "preview-invalid");
+  });
+}
+
+export function paintAttackResult(x, y, board, result) {
+  const spot = document.querySelector(
+    `.${board}board-div .spot[data-x="${x}"][data-y="${y}"]`,
+  );
+
+  if (!spot) return;
+
+  spot.classList.remove("clicked");
+
+  if (result === "hit") {
+    spot.classList.add("hit");
+  }
+
+  if (result === "miss") {
+    spot.classList.add("miss");
+  }
+}
+
+export function showGameOverlay(message) {
+  let overlay = document.querySelector(".game-overlay");
+
+  if (!overlay) {
+    overlay = document.createElement("div");
+    overlay.classList.add("game-overlay");
+    document.getElementById("game").appendChild(overlay);
+  }
+
+  overlay.textContent = message;
+}
+
+export function setComputerBoardCompact() {
+  const computerBoard = document.querySelector(".computerboard-div");
+  if (computerBoard) {
+    computerBoard.classList.add("board-compact");
+  }
+}
+
+export function setHumanBoardCompact() {
+  const humanBoard = document.querySelector(".humanboard-div");
+  if (humanBoard) {
+    humanBoard.classList.add("board-compact");
   }
 }
